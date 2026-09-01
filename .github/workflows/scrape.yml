@@ -32,10 +32,19 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@v1
+      - name: Install matching Chrome and ChromeDriver
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v2
         with:
           chrome-version: stable
+          install-chromedriver: true
+
+      - name: Export browser paths
+        run: |
+          echo "CHROME_BIN=${{ steps.setup-chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
+          echo "CHROMEDRIVER_PATH=${{ steps.setup-chrome.outputs.chromedriver-path }}" >> "$GITHUB_ENV"
+          "${{ steps.setup-chrome.outputs.chrome-path }}" --version
+          "${{ steps.setup-chrome.outputs.chromedriver-path }}" --version
 
       - name: Parse scrape request
         env:
@@ -47,7 +56,6 @@ jobs:
           DEFAULT_HEADLESS: 'true'
           SEARCH_PAGE_INITIAL_DELAY_MIN: '2'
           SEARCH_PAGE_INITIAL_DELAY_MAX: '3'
-          CHROMEDRIVER_PATH: ''
         run: |
           mkdir -p output data checkpoints debug
           python run_issue_scrape.py
