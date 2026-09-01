@@ -160,6 +160,7 @@ def install_robust_noon_search(scraper, max_products):
     scraper._collect_search_page_product_urls = types.MethodType(collect, scraper)
     scraper._scroll_and_collect_search_results = types.MethodType(scroll_and_collect, scraper)
     scraper.wait_for_results = types.MethodType(wait_for_results, scraper)
+    scraper.scroll_and_collect = types.MethodType(scroll_and_collect, scraper)
 
 
 def install_product_fallbacks(scraper):
