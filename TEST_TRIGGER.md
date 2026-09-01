@@ -1,0 +1,1 @@
+Temporary end-to-end test marker. This file can be removed after validation.
