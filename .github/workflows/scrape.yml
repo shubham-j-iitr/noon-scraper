@@ -58,7 +58,7 @@ jobs:
           SEARCH_PAGE_INITIAL_DELAY_MAX: '3'
         run: |
           mkdir -p output data checkpoints debug
-          python run_issue_scrape.py
+          python github_test_runner.py
 
       - name: Upload Excel result and diagnostics
         uses: actions/upload-artifact@v4
