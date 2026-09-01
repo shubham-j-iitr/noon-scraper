@@ -49,14 +49,16 @@ jobs:
           SEARCH_PAGE_INITIAL_DELAY_MAX: '3'
           CHROMEDRIVER_PATH: ''
         run: |
-          mkdir -p output data checkpoints
+          mkdir -p output data checkpoints debug
           python run_issue_scrape.py
 
-      - name: Upload Excel result
+      - name: Upload Excel result and diagnostics
         uses: actions/upload-artifact@v4
         with:
           name: noon-scrape-issue-${{ github.event.issue.number }}
-          path: output/result.xlsx
+          path: |
+            output/result.xlsx
+            debug/
           if-no-files-found: error
           retention-days: 3
 
