@@ -1,12 +1,16 @@
 import json
+import os
 import re
 import shutil
 import types
 from pathlib import Path
 
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
+from config import PAGE_LOAD_TIMEOUT
 from excel_exporter import ExcelExporter
 from noon_scraper import NoonScraper, build_noon_search_url, extract_noon_product_urls
 
@@ -37,6 +41,47 @@ def save_search_diagnostics(scraper, region, stage='search'):
         print(f'Diagnostic body excerpt: {body_text[:1500]!r}')
     except Exception as exc:
         print(f'Could not save diagnostic body text: {exc}')
+
+
+def install_chrome_network_fix(scraper):
+    """Use Chrome HTTP/1.1 for the GitHub-hosted test runner.
+
+    The previous run reached Noon but Chrome displayed ERR_HTTP2_PROTOCOL_ERROR.
+    Chromium officially exposes --disable-http2; QUIC is also disabled so the
+    test uses a conventional HTTP/1.1 connection path.
+    """
+    def init_driver(self):
+        chrome_options = webdriver.ChromeOptions()
+        for browser_binary in ('/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'):
+            if os.path.exists(browser_binary):
+                chrome_options.binary_location = browser_binary
+                break
+
+        if self.headless:
+            chrome_options.add_argument('--headless=new')
+            chrome_options.add_argument('--window-size=1920,1080')
+
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--disable-http2')
+        chrome_options.add_argument('--disable-quic')
+        chrome_options.add_argument('--lang=en-US')
+        chrome_options.add_argument('--accept-lang=en-US,en;q=0.9')
+        chrome_options.add_argument('--disable-notifications')
+        chrome_options.add_argument('--disable-popup-blocking')
+
+        chromedriver = os.getenv('CHROMEDRIVER_PATH', '').strip()
+        if not chromedriver and os.path.exists('/usr/bin/chromedriver'):
+            chromedriver = '/usr/bin/chromedriver'
+        if chromedriver:
+            self.driver = webdriver.Chrome(service=Service(chromedriver), options=chrome_options)
+        else:
+            self.driver = webdriver.Chrome(options=chrome_options)
+        self.driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
+        print('Chrome network mode: HTTP/1.1 (--disable-http2, --disable-quic)')
+
+    scraper._init_driver = types.MethodType(init_driver, scraper)
 
 
 def install_robust_noon_search(scraper, max_products):
@@ -77,7 +122,6 @@ def install_robust_noon_search(scraper, max_products):
                         hrefs.append(href)
             except Exception:
                 continue
-
         return extract_noon_product_urls(hrefs)
 
     def wait_for_results(self):
@@ -106,12 +150,10 @@ def install_robust_noon_search(scraper, max_products):
                     all_urls.append(url)
             if len(all_urls) >= target:
                 break
-
             self.driver.execute_script(
                 "window.scrollBy({top: Math.max(500, Math.floor(window.innerHeight * 0.85)), behavior: 'smooth'});"
             )
             self._random_delay(1.0, 2.0)
-
             for url in collect(self):
                 if url not in seen:
                     seen.add(url)
@@ -119,7 +161,6 @@ def install_robust_noon_search(scraper, max_products):
             print(f'Search scroll {scroll_num}/15: {len(all_urls)} unique product URLs')
             if len(all_urls) >= target:
                 break
-
             before = len(all_urls)
             try:
                 self.driver.execute_script(
@@ -196,13 +237,13 @@ def install_product_fallbacks(scraper):
                 if price and (not row.get('Price') or row.get('Price') == 'N/A'):
                     row['Price'] = price
         return rows
-
     scraper.scrape_product_details = types.MethodType(scrape_details, scraper)
 
 
 for region in regions:
     scraper = NoonScraper(headless=True, region=region)
     try:
+        install_chrome_network_fix(scraper)
         install_robust_noon_search(scraper, request['max_products'])
         install_product_fallbacks(scraper)
         data = scraper.scrape(request['keywords'], request['max_products'])
