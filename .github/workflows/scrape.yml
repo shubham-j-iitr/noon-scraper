@@ -8,14 +8,17 @@ permissions:
   contents: write
   issues: write
 
+# Each issue is an independent job. Never cancel a previous user's run.
+# With multiple self-hosted runners, GitHub can execute jobs concurrently.
+# With one runner, additional jobs wait in the queue instead of cancelling earlier jobs.
 concurrency:
-  group: noon-scraper
-  cancel-in-progress: true
+  group: noon-scraper-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 jobs:
   scrape:
     if: contains(github.event.issue.body, '<!-- NOON_SCRAPE_REQUEST -->')
-    runs-on: macos-latest
+    runs-on: [self-hosted, noon-scraper]
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -40,6 +43,7 @@ jobs:
           install-chromedriver: true
 
       - name: Export browser paths
+        shell: bash
         run: |
           echo "CHROME_BIN=${{ steps.setup-chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
           echo "CHROMEDRIVER_PATH=${{ steps.setup-chrome.outputs.chromedriver-path }}" >> "$GITHUB_ENV"
@@ -71,6 +75,7 @@ jobs:
           retention-days: 3
 
       - name: Publish result and close issue
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
