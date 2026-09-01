@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Noon Scraper</title>
+  <style>
+    body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#f6f7f9;margin:0;color:#111827}
+    .wrap{max-width:900px;margin:40px auto;padding:0 20px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px;box-shadow:0 8px 30px rgba(0,0,0,.05)}
+    h1{margin-top:0}.muted{color:#6b7280}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.full{grid-column:1/-1}label{font-weight:600;display:block;margin-bottom:7px}
+    input,select,button{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:11px;font-size:15px}textarea{width:100%;box-sizing:border-box;min-height:130px;border:1px solid #d1d5db;border-radius:10px;padding:11px;font-size:15px}
+    button{background:#111827;color:white;border:0;cursor:pointer;font-weight:700;margin-top:8px}.status{margin-top:20px;padding:16px;border-radius:10px;background:#f3f4f6;display:none}.progress{height:10px;background:#e5e7eb;border-radius:20px;overflow:hidden}.bar{height:100%;width:0;background:#111827}
+    a{color:#111827;font-weight:700}.warn{font-size:13px;color:#92400e;background:#fffbeb;padding:10px;border-radius:8px;margin-top:12px}
+    @media(max-width:700px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+  </style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+  <h1>Noon Product Scraper</h1>
+  <p class="muted">Open Noon's native search page directly, scroll through the results, collect product links, then export the results to Excel.</p>
+  <div class="grid">
+    <div class="full"><label>Keywords (one per line)</label><textarea id="keywords" placeholder="iPhone 15\nSamsung S24\nMacBook Air"></textarea></div>
+    <div><label>Region</label><select id="region"><option value="uae">UAE</option><option value="ksa">KSA</option><option value="both">Both</option></select></div>
+    <div><label>Max products / keyword</label><input id="maxProducts" type="number" min="1" max="100" value="25"></div>
+    <div><label>Output</label><select id="output"><option value="excel">Download Excel</option></select></div>
+    <div class="full"><button id="start">Start scraping</button></div>
+  </div>
+  <div class="warn">The app uses a normal headless Chrome browser to open Noon's native search page directly; it does not use a Google/Noon API. Respect Noon terms, robots policies and rate limits.</div>
+  <div id="status" class="status">
+    <div id="statusText">Queued…</div><br><div class="progress"><div id="bar" class="bar"></div></div>
+    <p id="count"></p><p id="links"></p>
+  </div>
+</div></div>
+<script>
+const $=id=>document.getElementById(id);
+let timer;
+$('start').onclick=async()=>{
+  const keywords=$('keywords').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!keywords.length){alert('Enter at least one keyword.');return;}
+  if(keywords.length>5){alert('Maximum 5 keywords per job.');return;}
+  $('start').disabled=true;$('status').style.display='block';$('statusText').textContent='Submitting…';$('links').innerHTML='';
+  try{
+    const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keywords,region:$('region').value,max_products:Number($('maxProducts').value),headless:true,output:$('output').value})});
+    const data=await r.json(); if(!r.ok) throw new Error(data.detail||'Unable to start job');
+    poll(data.job_id);
+  }catch(e){$('statusText').textContent=e.message;$('start').disabled=false;}
+};
+async function poll(id){
+  clearTimeout(timer); const r=await fetch('/api/jobs/'+id); const j=await r.json();
+  $('statusText').textContent='Status: '+j.status;$('bar').style.width=(j.progress||0)+'%';$('count').textContent='Products found: '+(j.products_found||0);
+  if(j.status==='completed'){$('links').innerHTML='<a href="/api/jobs/'+id+'/download">Download Excel</a>';$('start').disabled=false;return;}
+  if(j.status==='failed'){$('links').textContent=j.error||'Job failed';$('start').disabled=false;return;}
+  timer=setTimeout(()=>poll(id),2000);
+}
+</script>
+</body>
+</html>
