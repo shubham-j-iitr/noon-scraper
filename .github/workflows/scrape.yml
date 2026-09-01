@@ -1,0 +1,68 @@
+name: Run Noon Scraper
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: noon-scraper
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    if: contains(github.event.issue.body, '<!-- NOON_SCRAPE_REQUEST -->')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Parse scrape request
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: python scripts/parse_issue.py "$ISSUE_BODY"
+
+      - name: Run scraper
+        env:
+          DEFAULT_HEADLESS: 'true'
+          SEARCH_PAGE_INITIAL_DELAY_MIN: '2'
+          SEARCH_PAGE_INITIAL_DELAY_MAX: '3'
+          CHROMEDRIVER_PATH: ''
+        run: |
+          mkdir -p output data checkpoints
+          python scripts/run_issue_scrape.py
+
+      - name: Upload Excel result
+        uses: actions/upload-artifact@v4
+        with:
+          name: noon-scrape-issue-${{ github.event.issue.number }}
+          path: output/result.xlsx
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Report result on issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+        run: python scripts/publish_result.py
