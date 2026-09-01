@@ -33,7 +33,7 @@ button:disabled{opacity:.65;cursor:wait}
 <button id="run" type="button">Start scraper</button>
 <div id="error" class="error"></div>
 <div id="status" class="status"></div>
-<div class="note"><strong>How it works:</strong> clicking Start opens a pre-filled GitHub request page in a new tab. On GitHub, click <strong>Submit new issue</strong>. That submission starts the scraper. Keep this page open if you want to return here.</div>
+<div class="note"><strong>How it works:</strong> click Start. This page will open the pre-filled GitHub request in the <strong>current tab</strong>. On GitHub, click <strong>Submit new issue</strong>. That submission starts the scraper. You can return to this page with your browser Back button.</div>
 </div></div>
 <script>
 (function(){
@@ -81,20 +81,12 @@ button:disabled{opacity:.65;cursor:wait}
 
     button.disabled=true;
     button.textContent='Opening GitHub request...';
-    showStatus('Opening GitHub in a new tab. Click "Submit new issue" there to start the scraper.',false);
+    showStatus('Opening GitHub request in this tab. On GitHub, click "Submit new issue" to start the scraper.',false);
 
-    const newWindow=window.open(url,'_blank','noopener,noreferrer');
-    if(!newWindow){
-      showStatus('Your browser blocked the new tab. Redirecting this tab to the GitHub request page...',false);
-      window.location.assign(url);
-      return;
-    }
-
-    window.setTimeout(function(){
-      button.disabled=false;
-      button.textContent='Start scraper';
-      showStatus('GitHub request page opened. Submit the pre-filled issue there to start the scraper.',true);
-    },800);
+    // Use same-tab navigation deliberately. A public GitHub Pages site cannot
+    // reliably detect the completion of a cross-origin GitHub issue submission,
+    // and popup blockers can hide window.open(). Same-tab navigation is reliable.
+    window.location.assign(url);
   });
 })();
 </script>
