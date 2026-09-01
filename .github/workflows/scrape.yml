@@ -15,7 +15,7 @@ concurrency:
 jobs:
   scrape:
     if: contains(github.event.issue.body, '<!-- NOON_SCRAPE_REQUEST -->')
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - name: Checkout repository
