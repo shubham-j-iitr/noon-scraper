@@ -5,7 +5,7 @@ on:
     types: [opened]
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 concurrency:
@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,7 +40,7 @@ jobs:
       - name: Parse scrape request
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
-        run: python scripts/parse_issue.py "$ISSUE_BODY"
+        run: python parse_issue.py "$ISSUE_BODY"
 
       - name: Run scraper
         env:
@@ -48,7 +50,7 @@ jobs:
           CHROMEDRIVER_PATH: ''
         run: |
           mkdir -p output data checkpoints
-          python scripts/run_issue_scrape.py
+          python run_issue_scrape.py
 
       - name: Upload Excel result
         uses: actions/upload-artifact@v4
@@ -58,11 +60,11 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-      - name: Report result on issue
+      - name: Publish result and close issue
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          REPOSITORY: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          SERVER_URL: ${{ github.server_url }}
-        run: python scripts/publish_result.py
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+        run: python publish_result.py
