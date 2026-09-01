@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: noon-scraper
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SCRAPER_ENABLED
+        value: "false"
+      - key: DEFAULT_HEADLESS
+        value: "true"
+      - key: SEARCH_PAGE_INITIAL_DELAY_MIN
+        value: "2"
+      - key: SEARCH_PAGE_INITIAL_DELAY_MAX
+        value: "3"
+      - key: CORS_ORIGINS
+        value: "*"
