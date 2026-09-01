@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Noon Scraper</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f7fb;color:#111827;margin:0}.wrap{max-width:720px;margin:50px auto;padding:20px}.card{background:#fff;padding:28px;border-radius:18px;border:1px solid #e5e7eb;box-shadow:0 10px 30px rgba(0,0,0,.06)}h1{margin-top:0}label{font-weight:700;display:block;margin:16px 0 7px}textarea,input,select,button{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:12px;font:inherit}textarea{min-height:130px}button{margin-top:20px;background:#111827;color:#fff;border:0;font-weight:700;cursor:pointer}.muted{color:#6b7280}.note{margin-top:16px;padding:12px;border-radius:10px;background:#f9fafb;font-size:13px}.error{color:#b91c1c;margin-top:10px}
+</style>
+</head>
+<body><div class="wrap"><div class="card">
+<h1>Noon Product Scraper</h1>
+<p class="muted">Free GitHub-powered scraper. Your request runs in a background GitHub Actions browser job and produces an Excel file.</p>
+<label>Keywords — one per line</label>
+<textarea id="keywords" placeholder="iPhone 15&#10;Samsung S24"></textarea>
+<label>Region</label>
+<select id="region"><option value="uae">UAE</option><option value="ksa">KSA</option><option value="both">UAE + KSA</option></select>
+<label>Maximum products per keyword</label>
+<input id="max" type="number" value="10" min="1" max="50">
+<button id="run">Start scraper</button>
+<div id="error" class="error"></div>
+<div class="note">After clicking Start, GitHub will open a new issue. Submit that issue to start the free background job. The generated Excel file is published in the public repository.</div>
+</div></div>
+<script>
+function repoInfo(){
+  const host=location.hostname;
+  const path=location.pathname.split('/').filter(Boolean);
+  if(host.endsWith('.github.io')) return {owner:host.split('.')[0],repo:path[0]||'noon-scraper'};
+  const parts=(location.href.match(/github\.com\/([^/]+)\/([^/]+)/)||[]);
+  if(parts[1]) return {owner:parts[1],repo:parts[2].replace(/\.git$/,'')};
+  throw new Error('Could not determine GitHub repository. Host this page with GitHub Pages.');
+}
+
+document.getElementById('run').onclick=()=>{
+  const keywords=document.getElementById('keywords').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  const region=document.getElementById('region').value;
+  const max=Math.max(1,Math.min(50,Number(document.getElementById('max').value||10)));
+  const error=document.getElementById('error'); error.textContent='';
+  if(!keywords.length){error.textContent='Enter at least one keyword.';return;}
+  if(keywords.length>5){error.textContent='Maximum 5 keywords.';return;}
+  let info; try{info=repoInfo()}catch(e){error.textContent=e.message;return;}
+  const payload={keywords,region,max_products:max};
+  const body='<!-- NOON_SCRAPE_REQUEST -->\n```json\n'+JSON.stringify(payload,null,2)+'\n```\n\nPlease run this scrape request.';
+  const url='https://github.com/'+encodeURIComponent(info.owner)+'/'+encodeURIComponent(info.repo)+'/issues/new?title='+encodeURIComponent('Scrape request: '+keywords.join(', '))+'&body='+encodeURIComponent(body);
+  window.location.href=url;
+};
+</script>
+</body></html>
